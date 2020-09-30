@@ -15,7 +15,7 @@ dateconvert <- function(x){
   #pastes it together into a string with the 1st of the month
   thedate <- paste(month,"-01-",year, sep="")
   #returns as a date
-  return(as.Date(thedate, format = "%b-%d-%y"))
+  return(as.Date(thedate, format = "%b-%d-%Y"))
 }
 
 data$last_credit_pull_d2 <- dateconvert(data$last_credit_pull_d)
