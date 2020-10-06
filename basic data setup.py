@@ -11,15 +11,20 @@ import numpy as np
 
 #a function that receives the dataframe, data column & row you wish to alter a string into a date format
 def dateconvert(datestring):
-    month = datestring[0:3]
-    year = datestring[4:8]
-    date_time_str = month +' 01 '+ year
-    #date format switches partiall through the dataset to not include 4 char year
-    if (len(year)<4):
-        date_time_obj = datetime.datetime.strptime(date_time_str, '%b %d %y')
+    #this is error handling for a blank field, instead of parsing it will return a blank
+    if type(datestring)==float:
+        date_time_obj=''
+        return date_time_obj
     else:
-        date_time_obj = datetime.datetime.strptime(date_time_str, '%b %d %Y')
-    return date_time_obj
+        month = datestring[0:3]
+        year = datestring[4:8]
+        date_time_str = month +' 01 '+ year
+        #date format switches partiall through the dataset to not include 4 char year
+        if len(year)==2:
+            date_time_obj = datetime.datetime.strptime(date_time_str, '%b %d %y')  
+        else:
+            date_time_obj = datetime.datetime.strptime(date_time_str, '%b %d %Y')
+        return date_time_obj
 
 #changes working directory and selects file
 os.chdir("C:/Users/clesc/OneDrive/Documents/Northwestern/MSDS 498")
@@ -38,7 +43,9 @@ df = df.reset_index(drop=True)
 
 
 #####add the column headers you need to this date converting list
-datecol_list = ['issue_d','earliest_cr_line']
+datecol_list = ['issue_d','earliest_cr_line','last_pymnt_d','last_credit_pull_d',
+                'hardship_start_date','hardship_end_date','payment_plan_start_date',
+                'debt_settlement_flag_date','settlement_date']
 
 #loops the date columns through the dateconvert function and creates new columns with a "2" at the end
 for c in range(0,len(datecol_list)):
@@ -51,8 +58,10 @@ for c in range(0,len(datecol_list)):
 #
 #
 #this is my error testing code
-#for c in range(150000,300000):
-    #print (df.loc[c]['earliest_cr_line'])
-    #dateconvert(df.loc[c]['earliest_cr_line'])
+for c in range(0,300000):
+    print(c)
+    print (df.loc[c]['id'])
+    print (df.loc[c]['last_pymnt_d'])
+    dateconvert(df.loc[c]['last_pymnt_d'])
     
     
