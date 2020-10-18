@@ -18,6 +18,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 from imblearn.over_sampling import SMOTE
 
+import time
+start_time = time.time()
 #may need below line to get imblearn to work
 #conda install -c conda-forge imbalanced-learn
 
@@ -25,22 +27,28 @@ os.chdir("C:/Users/clesc/OneDrive/Documents/Northwestern/MSDS 498")
 df =  pd.read_csv('modelingdftrain.csv', sep=','  , engine='python')
 
 #function to return accuracy measure & confusion matrix, just enter in y predictions since y_test values don't change
-def norm_con_fmat(y_pred):
+def norm_con_fmat(y_pred, title):
     #confusion matrix that's been normalized
+    fig = plt.figure( )
     confusion_matrix = pd.crosstab(y_test, y_pred, rownames=['Actual'], colnames=['Predicted'],normalize=True)
     sns.heatmap(confusion_matrix, annot=True)
     print('Accuracy: ',metrics.accuracy_score(y_test, y_pred))
+    plt.title(title)
     plt.show()
-
+    fig.savefig(title + " Con Mat", bbox_inches='tight', dpi=250)
+    
 #calculates and plots the ROC and auc
-def roc_auc(model):
+def roc_auc(model, title):
+    fig = plt.figure( )
     y_pred_proba = model.predict_proba(X_test)[::,1]
     fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
     auc = metrics.roc_auc_score(y_test, y_pred_proba)
     plt.plot(fpr,tpr,label="data 1, auc="+str(auc))
     plt.legend(loc=4)
+    plt.title(title)
     plt.show()
-
+    fig.savefig(title + " ROC", bbox_inches='tight', dpi=250)
+    
 #gives us Rsquared, MAE, MSE, RMSE and more
 def err_summary(y_pred):
     # Regression metrics
@@ -119,8 +127,8 @@ model1 = LogisticRegression(max_iter=10000)
 model1.fit(X_train,y_train)
 y_pred1=model1.predict(X_test)
 
-norm_con_fmat(y_pred1)
-roc_auc(model1)
+norm_con_fmat(y_pred1,'Log Reg')
+roc_auc(model1, 'Log Reg')
 err_summary(y_pred1)
 model1.coef_
 
@@ -129,32 +137,32 @@ model1_SMOTE = LogisticRegression(max_iter=10000)
 model1_SMOTE.fit(X_train_SMOTE,y_train_SMOTE)
 y_pred1_SMOTE=model1_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred1_SMOTE)
-roc_auc(model1_SMOTE)
+norm_con_fmat(y_pred1_SMOTE, 'Log Reg SMOTE')
+roc_auc(model1_SMOTE,'Log Reg SMOTE')
 err_summary(y_pred1_SMOTE)
 model1_SMOTE.coef_
 
 
 #RFE
 model2 = LogisticRegression(max_iter=10000)
-rfe = RFECV(model2)
+rfe = RFECV(model2, n_jobs=10)
 rfe.fit(X_train,y_train)
 y_pred2=rfe.predict(X_test)
 
-norm_con_fmat(y_pred2)
-roc_auc(rfe)
+norm_con_fmat(y_pred2, 'Log Reg RFE')
+roc_auc(rfe, 'Log Reg RFE')
 err_summary(y_pred2)
 
 rfe_vars = cols_used(rfe)
     
 #RFE with SMOTE
 model2_SMOTE = LogisticRegression(max_iter=10000)
-rfe_SMOTE = RFECV(model2_SMOTE)
+rfe_SMOTE = RFECV(model2_SMOTE, n_jobs=10)
 rfe_SMOTE.fit(X_train_SMOTE,y_train_SMOTE)
 y_pred2_SMOTE=rfe_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred2_SMOTE)
-roc_auc(rfe_SMOTE)
+norm_con_fmat(y_pred2_SMOTE, 'Log Reg RFE SMOTE')
+roc_auc(rfe_SMOTE, 'Log Reg RFE SMOTE')
 err_summary(y_pred2_SMOTE)
 
 rfe_SMOTE_vars = cols_used(rfe_SMOTE)
@@ -165,8 +173,8 @@ model3 = DecisionTreeClassifier()
 model3 = model3.fit(X_train,y_train)
 y_pred3 = model3.predict(X_test)
 
-norm_con_fmat(y_pred3)
-roc_auc(model3)
+norm_con_fmat(y_pred3, 'Tree')
+roc_auc(model3, 'Tree')
 err_summary(y_pred3)
 
 
@@ -175,31 +183,32 @@ model3_SMOTE = DecisionTreeClassifier()
 model3_SMOTE = model3_SMOTE.fit(X_train,y_train)
 y_pred3_SMOTE = model3_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred3_SMOTE)
-roc_auc(model3_SMOTE)
+norm_con_fmat(y_pred3_SMOTE, 'Tree SMOTE')
+roc_auc(model3_SMOTE, 'Tree SMOTE')
 err_summary(y_pred3_SMOTE)
 
 
 #RFEtree
 model4 = DecisionTreeClassifier()
-rfe2 = RFECV(model4)
+rfe2 = RFECV(model4, n_jobs=10)
 rfe2.fit(X_train,y_train)
 y_pred4=rfe2.predict(X_test)
 
-norm_con_fmat(y_pred4)
-roc_auc(rfe2)
+norm_con_fmat(y_pred4, 'Tree RFE')
+roc_auc(rfe2, 'Tree RFE')
 err_summary(y_pred4)
 
 rfe_vars = cols_used(rfe2)
     
+
 #RFE with SMOTE
 model4_SMOTE = DecisionTreeClassifier()
-rfe2_SMOTE = RFECV(model4_SMOTE)
+rfe2_SMOTE = RFECV(model4_SMOTE, n_jobs=10)
 rfe2_SMOTE.fit(X_train_SMOTE,y_train_SMOTE)
-y_pred4_SMOTE=rfe2.predict(X_test)
+y_pred4_SMOTE=rfe2_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred4_SMOTE)
-roc_auc(rfe2_SMOTE)
+norm_con_fmat(y_pred4_SMOTE, 'Tree RFE SMOTE')
+roc_auc(rfe2_SMOTE, 'Tree RFE SMOTE')
 err_summary(y_pred4_SMOTE)
 
 rfe_vars = cols_used(rfe2_SMOTE)
@@ -207,12 +216,7 @@ rfe_vars = cols_used(rfe2_SMOTE)
 
 
 
-
-
-
-
-
-
+print("--- %s seconds ---" % (time.time() - start_time))
 
 
 
