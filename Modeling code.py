@@ -27,43 +27,40 @@ os.chdir("C:/Users/clesc/OneDrive/Documents/Northwestern/MSDS 498")
 df =  pd.read_csv('modelingdftrain.csv', sep=','  , engine='python')
 
 #function to return accuracy measure & confusion matrix, just enter in y predictions since y_test values don't change
-def norm_con_fmat(y_pred, title):
+def graph_metrics(y_pred, title, model):
     #confusion matrix that's been normalized
     fig = plt.figure( )
     confusion_matrix = pd.crosstab(y_test, y_pred, rownames=['Actual'], colnames=['Predicted'],normalize=True)
     sns.heatmap(confusion_matrix, annot=True)
-    print('Accuracy: ',metrics.accuracy_score(y_test, y_pred))
     plt.title(title)
+    plt.xticks(np.arange(0.5,2), ['Paid', 'Default'])
+    plt.yticks(np.arange(0.5,2), ['Paid', 'Default'])
     plt.show()
     fig.savefig(title + " Con Mat", bbox_inches='tight', dpi=250)
-    
-#calculates and plots the ROC and auc
-def roc_auc(model, title):
+
+    #roc
     fig = plt.figure( )
     y_pred_proba = model.predict_proba(X_test)[::,1]
     fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
     auc = metrics.roc_auc_score(y_test, y_pred_proba)
-    plt.plot(fpr,tpr,label="data 1, auc="+str(auc))
+    plt.plot(fpr,tpr,label="ROC, auc="+str(auc))
     plt.legend(loc=4)
-    plt.title(title)
+    plt.title(title+ " ROC")
     plt.show()
     fig.savefig(title + " ROC", bbox_inches='tight', dpi=250)
-    
-#gives us Rsquared, MAE, MSE, RMSE and more
-def err_summary(y_pred):
-    # Regression metrics
+
+    #gives us Accuracy Rsquared, MAE, MSE, RMSE and more    
     explained_variance=metrics.explained_variance_score(y_test, y_pred)
     mean_absolute_error=metrics.mean_absolute_error(y_test, y_pred) 
     mse=metrics.mean_squared_error(y_test, y_pred) 
     mean_squared_log_error=metrics.mean_squared_log_error(y_test, y_pred)
-    r2=metrics.r2_score(y_test, y_pred)
-
-    print('explained_variance: ', round(explained_variance,4))    
-    print('mean_squared_log_error: ', round(mean_squared_log_error,4))
-    print('r2: ', round(r2,4))
-    print('MAE: ', round(mean_absolute_error,4))
-    print('MSE: ', round(mse,4))
-    print('RMSE: ', round(np.sqrt(mse),4))
+    r2=metrics.r2_score(y_test, y_pred)    
+    
+    return [title, metrics.accuracy_score(y_test, y_pred), round(explained_variance,4),
+                         round(mean_squared_log_error,4), round(r2,4), round(mean_absolute_error,4), 
+                         round(mse,4), round(np.sqrt(mse),4), auc, 
+                         confusion_matrix[0][0], confusion_matrix[1][1], confusion_matrix[0][1], confusion_matrix[1][0]]
+    
 
 def cols_used(model):
     d = []
@@ -76,7 +73,17 @@ def cols_used(model):
                 }
             )
     return pd.DataFrame(d)
-    
+
+#this is our comparison dataframe to judge all models on
+#True Negative is when we accurately predict someone will pay off their loan
+#True Pos is when we accurately predict someone will default
+#False Neg is when we believe someone will pay off their loan but they don't
+#False Pos is when we believe someone will default but they don't
+resultcols = ['Model', 'Accuracy', 'explained_variance','mean_squared_log_error', 'r2', 'MAE', 'MSE', 'RMSE',
+              'AUC','True_Neg', 'True_Pos', 'False_Neg', 'False_Pos']
+resultsdf = pd.DataFrame(columns=resultcols)
+
+
 #this is the full modeling file once we fix the data issues
 X = df[['loan_amnt_cuberoot', 'term', 'int_rate_log', 'grade', 
               'emp_length2', 'home_ownership2', 'annual_inc', 
@@ -127,9 +134,13 @@ model1 = LogisticRegression(max_iter=10000)
 model1.fit(X_train,y_train)
 y_pred1=model1.predict(X_test)
 
-norm_con_fmat(y_pred1,'Log Reg')
-roc_auc(model1, 'Log Reg')
-err_summary(y_pred1)
+
+#reuse this line to append the results of your model to the results df 
+#replace the following
+#y_pred1 -> results of your predictions
+#'Log reg' -> the title of the graphs and model type
+#model1 -> what the model is stored as
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred1,'Log Reg', model1), index= resultcols), ignore_index=True)
 model1.coef_
 
 #with  SMOTE
@@ -137,9 +148,7 @@ model1_SMOTE = LogisticRegression(max_iter=10000)
 model1_SMOTE.fit(X_train_SMOTE,y_train_SMOTE)
 y_pred1_SMOTE=model1_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred1_SMOTE, 'Log Reg SMOTE')
-roc_auc(model1_SMOTE,'Log Reg SMOTE')
-err_summary(y_pred1_SMOTE)
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred1_SMOTE,'Log Reg SMOTE', model1_SMOTE), index= resultcols), ignore_index=True)
 model1_SMOTE.coef_
 
 
@@ -149,10 +158,7 @@ rfe = RFECV(model2, n_jobs=10)
 rfe.fit(X_train,y_train)
 y_pred2=rfe.predict(X_test)
 
-norm_con_fmat(y_pred2, 'Log Reg RFE')
-roc_auc(rfe, 'Log Reg RFE')
-err_summary(y_pred2)
-
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred2,'Log Reg RFE', rfe), index= resultcols), ignore_index=True)
 rfe_vars = cols_used(rfe)
     
 #RFE with SMOTE
@@ -161,10 +167,7 @@ rfe_SMOTE = RFECV(model2_SMOTE, n_jobs=10)
 rfe_SMOTE.fit(X_train_SMOTE,y_train_SMOTE)
 y_pred2_SMOTE=rfe_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred2_SMOTE, 'Log Reg RFE SMOTE')
-roc_auc(rfe_SMOTE, 'Log Reg RFE SMOTE')
-err_summary(y_pred2_SMOTE)
-
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred2_SMOTE,'Log Reg RFE SMOTE', rfe_SMOTE), index= resultcols), ignore_index=True)
 rfe_SMOTE_vars = cols_used(rfe_SMOTE)
 
 
@@ -173,9 +176,7 @@ model3 = DecisionTreeClassifier()
 model3 = model3.fit(X_train,y_train)
 y_pred3 = model3.predict(X_test)
 
-norm_con_fmat(y_pred3, 'Tree')
-roc_auc(model3, 'Tree')
-err_summary(y_pred3)
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred3,'Tree', model3), index= resultcols), ignore_index=True)
 
 
 #tree with SMOTE
@@ -183,9 +184,7 @@ model3_SMOTE = DecisionTreeClassifier()
 model3_SMOTE = model3_SMOTE.fit(X_train,y_train)
 y_pred3_SMOTE = model3_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred3_SMOTE, 'Tree SMOTE')
-roc_auc(model3_SMOTE, 'Tree SMOTE')
-err_summary(y_pred3_SMOTE)
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred3_SMOTE,'Tree SMOTE', model3_SMOTE), index= resultcols), ignore_index=True)
 
 
 #RFEtree
@@ -194,11 +193,8 @@ rfe2 = RFECV(model4, n_jobs=10)
 rfe2.fit(X_train,y_train)
 y_pred4=rfe2.predict(X_test)
 
-norm_con_fmat(y_pred4, 'Tree RFE')
-roc_auc(rfe2, 'Tree RFE')
-err_summary(y_pred4)
-
-rfe_vars = cols_used(rfe2)
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred4,'Tree RFE', rfe2), index= resultcols), ignore_index=True)
+rfe2_vars = cols_used(rfe2)
     
 
 #RFE with SMOTE
@@ -207,23 +203,15 @@ rfe2_SMOTE = RFECV(model4_SMOTE, n_jobs=10)
 rfe2_SMOTE.fit(X_train_SMOTE,y_train_SMOTE)
 y_pred4_SMOTE=rfe2_SMOTE.predict(X_test)
 
-norm_con_fmat(y_pred4_SMOTE, 'Tree RFE SMOTE')
-roc_auc(rfe2_SMOTE, 'Tree RFE SMOTE')
-err_summary(y_pred4_SMOTE)
-
-rfe_vars = cols_used(rfe2_SMOTE)
+resultsdf=resultsdf.append(pd.Series(graph_metrics(y_pred4_SMOTE,'Tree RFE SMOTE', rfe2_SMOTE), index= resultcols), ignore_index=True)
+rfe2_SMOTE_vars = cols_used(rfe2_SMOTE)
 
 
+print(resultsdf)
 
+resultsdf.to_csv('modelresults.csv') 
 
 print("--- %s seconds ---" % (time.time() - start_time))
-
-
-
-
-
-
-
 
 
 
